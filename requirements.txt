@@ -1,3 +1,5 @@
 wget
 selenium
 pdfminer
+pytesseract
+pdf2image
