@@ -130,6 +130,7 @@ def convert_to_text():
                 title = work.replace(work[-3:],"txt")                         #Grab the name to assign the text file
                 if title not in os.listdir(save_path):                        #If the text file does not exist in the save path
 ##                    try:                                                      #Attempt to convert the pdf to text, catching the instances where the pdf requires a password
+                    print("\nAttempting to convert {}".format(work))
                     text = convert_pdf_to_txt(work)                       #Grab the text contents of the pdf
                     '''
                     If the length of the converted text is less than roughly 5000 characters then we have either hit one of google's scanned pdfs
@@ -142,7 +143,9 @@ def convert_to_text():
                             f.write(text)           
                         print("{} Converted".format(work))
                     else:
-                        convert_scan_to_text(title,work)
+                        print("Passed on {}".format(work))
+                        pass
+                        #convert_scan_to_text(title,work)
 ##                    except TypeError:                                             #If the pdf requires a password skip it
 ##                        print("\n!!!")
 ##                        print("Attention: {} requires password, skipping.".format(work))
