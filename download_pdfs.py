@@ -3,6 +3,7 @@
 @date: November 5, 2019
 @description: Given the results of a search on archive.org, download all results
               in pdf format.
+@TODO: Overhaul to use scrape the authors on  http://project.unicorn.holtof.com 
 '''
 '''
 The link to all philosophy text that are in english and always avaliable.
