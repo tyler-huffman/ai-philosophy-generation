@@ -5,3 +5,5 @@ pytesseract
 pdf2image
 tensorflow
 numpy
+pyyaml
+h5py
