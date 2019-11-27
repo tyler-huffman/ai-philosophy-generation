@@ -1,9 +1,10 @@
 '''
 @author: Tyler Huffman
 @date: November 23, 2019
-@description: The RNN model that takes an author's work in, learns, and then generates
+@description: The RNN model that takes an author's work in, learns, and then generates text character by character
 @TODO: Account for non-english chars. More philosophers then Nietzsche include quotes in other languages so I have to figure out how
-       to handle them. If more then one text files exists merge themm ignore all files not ending in ".txt"
+       to handle them. If more then one text files exists merge them and ignore all files not ending in ".txt". Switch RNN to grab words 
+       and learn by predicting the next word, enable loading of pre-trained weights, and add dropout.
 '''
 #Source: www.tensorflow.org/tutorials/text/text_generation
 #Source: https://machinelearningmastery.com/text-generation-lstm-recurrent-neural-networks-python-keras/
@@ -23,12 +24,8 @@ def split_input_target(chunk):
 
 def build_model(vocab_size, embedding_dim, rnn_units, batch_size):
   model = tf.keras.Sequential([
-    tf.keras.layers.Embedding(vocab_size, embedding_dim,
-                              batch_input_shape=[batch_size, None]),
-    tf.keras.layers.LSTM(rnn_units,
-                        return_sequences=True,
-                        stateful=True,
-                        recurrent_initializer='glorot_uniform'),
+    tf.keras.layers.Embedding(vocab_size, embedding_dim, batch_input_shape=[batch_size, None]),
+    tf.keras.layers.LSTM(rnn_units, return_sequences=True, stateful=True, recurrent_initializer='glorot_uniform'),
     tf.keras.layers.Dense(vocab_size)
   ])
   return model
@@ -82,97 +79,103 @@ def generate_text(model, start_string):
 
   return (start_string + ''.join(text_generated))
 
-def loss(labels, logits):
-  return tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
+philosopher = "Nietzsche"
+try:
+  path_to_phil = "Works\\{}\\".format(philosopher)              #Define where to grab the text files
+  works = [i for i in os.listdir(path_to_phil) if ".txt" in i] #Grab the text file(s)
+except FileNotFoundError:                                  #Catch the case where the program is fed an invalid path
+  print("Error: \"{}\" is not a valid directory".format(path_to_phil))   #Inform the user of the error and exit the programs
+  sys.exit(0)
 
-def train_on(philosopher):
-  try:
-    path_to_phil = "Works\\{}\\".format(philosopher)         #Define where to grab the text files
-    works = os.listdir(path_to_phil)                         #Grab the name of the text file(s)
-  except FileNotFoundError:                                  #Catch the case where the program is fed an invalid path
-    print("Error: {} is not a valid directory")              #Inform the user of the error and exit the programs
-    sys.exit(0)
-  path_to_file = path_to_phil + "\\" + works[0]
+compiled_work = ""
+for i in range(len(works)):
+  path_to_file = path_to_phil + "\\" + works[i]
   text = open(path_to_file, 'r', encoding='utf-8').read().lower()    #Open the text files, read the contents, and force them into lowercase
-  chars = sorted(list(set(text)))                                    #Grab the number of unique characters
+  compiled_work += text + " "
 
-  print("Length of text: {} characters".format(len(text)))
-  print("{} unique characters".format(len(chars)))
+chars = sorted(list(set(compiled_work)))                                    #Grab the number of unique characters
 
-  char2idx = {u:i for i, u in enumerate(chars)}              #Create a map from unique characters to indices
-  idx2char = np.array(chars)                                 #Create a map from integers to unique chars
-  text_as_int = np.array([char2idx[c] for c in text])
+print("Length of Text: {} characters".format(len(compiled_work)))
+print("{} unique characters".format(len(chars)))
 
-  print('{')
-  for char,_ in zip(char2idx, range(20)):
-      print('  {:4s}: {:3d},'.format(repr(char), char2idx[char]))
-  print('  ...\n}')
+char2idx = {u:i for i, u in enumerate(chars)}              #Create a map from unique characters to indices
+idx2char = np.array(chars)                                 #Create a map from integers to unique chars
+text_as_int = np.array([char2idx[c] for c in compiled_work])
 
-  seq_length = 100
-  examples_per_epoch = len(text)//(seq_length+1)
+print('{')
+for char,_ in zip(char2idx, range(20)):
+    print('  {:4s}: {:3d},'.format(repr(char), char2idx[char]))
+print('  ...\n}')
 
-  char_dataset = tf.data.Dataset.from_tensor_slices(text_as_int)
+seq_length = 100
+examples_per_epoch = len(compiled_work)//(seq_length+1)
 
-  for i in char_dataset.take(5):
-      print(idx2char[i.numpy()])
+char_dataset = tf.data.Dataset.from_tensor_slices(text_as_int)
 
-  sequences = char_dataset.batch(seq_length+1, drop_remainder=True)
+for i in char_dataset.take(5):
+    print(idx2char[i.numpy()])
 
-  for item in sequences.take(5):
-      print(repr(''.join(idx2char[item.numpy()])))
+sequences = char_dataset.batch(seq_length+1, drop_remainder=True)
 
-  dataset = sequences.map(split_input_target)
+for item in sequences.take(5):
+    print(repr(''.join(idx2char[item.numpy()])))
 
-  BATCH_SIZE = 64
-  BUFFER_SIZE = 10000
+dataset = sequences.map(split_input_target)
 
-  dataset = dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder=True)
+BATCH_SIZE = 64
+BUFFER_SIZE = 10000
 
-  # Length of the vocabulary in chars
-  vocab_size = len(chars)
+dataset = dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder=True)
 
-  # The embedding dimension
-  embedding_dim = 256
+# Length of the vocabulary in chars
+vocab_size = len(chars)
 
-  # Number of RNN units
-  rnn_units = 1024
+# The embedding dimension
+embedding_dim = 256
 
-  model = build_model(
-    vocab_size = len(chars),
-    embedding_dim=embedding_dim,
-    rnn_units=rnn_units,
-    batch_size=BATCH_SIZE)
+# Number of RNN units
+rnn_units = 1024
 
-  for input_example_batch, target_example_batch in dataset.take(1):
-      example_batch_predictions = model(input_example_batch)
-      print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
+model = build_model(
+  vocab_size = len(chars),
+  embedding_dim=embedding_dim,
+  rnn_units=rnn_units,
+  batch_size=BATCH_SIZE)
 
-  model.summary()
+for input_example_batch, target_example_batch in dataset.take(1):
+    example_batch_predictions = model(input_example_batch)
+    print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
 
-  example_batch_loss = loss(target_example_batch, example_batch_predictions)
-  print("Prediction shape: ", example_batch_predictions.shape, " # (batch_size, sequence_length, vocab_size)")
-  print("scalar_loss:      ", example_batch_loss.numpy().mean())
+model.summary()
 
-  model.compile(optimizer='adam', loss=loss)
+example_batch_loss = loss(target_example_batch, example_batch_predictions)
+print("Prediction shape: ", example_batch_predictions.shape, " # (batch_size, sequence_length, vocab_size)")
+print("scalar_loss:      ", example_batch_loss.numpy().mean())
 
-  checkpoint_dir = './training_checkpoints/{}'.format(philosopher)  #Directory where the checkpoints will be saved
-  checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_{epoch}")  #Name of the checkpoint files
+model.compile(optimizer='adam', loss=loss)
 
-  checkpoint_callback=tf.keras.callbacks.ModelCheckpoint(
-      filepath=checkpoint_prefix,
-      save_weights_only=True)
+checkpoint_dir = './training_checkpoints/{}'.format(philosopher)  #Directory where the checkpoints will be saved
+checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_{epoch}")  #Name of the checkpoint files
 
-  EPOCHS = 40
+checkpoint_callback=tf.keras.callbacks.ModelCheckpoint(
+    filepath=checkpoint_prefix,
+    save_weights_only=True)
 
-  history = model.fit(dataset, epochs=EPOCHS, callbacks=[checkpoint_callback])
-  
-  tf.train.latest_checkpoint(checkpoint_dir) #Train the RNN
-  
-  model = build_model(vocab_size, embedding_dim, rnn_units, batch_size=1)
-  model.load_weights(tf.train.latest_checkpoint(checkpoint_dir))
-  model.build(tf.TensorShape([1, None]))
-  model.summary()
+EPOCHS = 40
 
-  print(generate_text(model, start_string=u"Life,  "))
+history = model.fit(dataset, epochs=EPOCHS, callbacks=[checkpoint_callback])
 
-train_on("Nietzsche")
+tf.train.latest_checkpoint(checkpoint_dir) #Train the RNN
+
+model = build_model(vocab_size, embedding_dim, rnn_units, batch_size=1)
+model.load_weights(tf.train.latest_checkpoint(checkpoint_dir))
+model.build(tf.TensorShape([1, None]))
+model.summary()
+
+#Save the entire model
+model.save("Nietzsche.h5")
+
+print(generate_text(model, start_string=u"Life,  "))
+
+#train_on("Nietzsche")
+#generate_text("training_checkpoints\ckpt_10.data-00000-of-00001","Life is ")
