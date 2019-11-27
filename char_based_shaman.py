@@ -7,7 +7,6 @@
        and learn by predicting the next word, enable loading of pre-trained weights, and add dropout.
 '''
 #Source: www.tensorflow.org/tutorials/text/text_generation
-#Source: https://machinelearningmastery.com/text-generation-lstm-recurrent-neural-networks-python-keras/
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 import tensorflow as tf
