@@ -7,3 +7,4 @@ tensorflow
 numpy
 pyyaml
 h5py
+nltk
