@@ -9,6 +9,7 @@
 #Source: www.tensorflow.org/tutorials/text/text_generation
 
 from __future__ import absolute_import, division, print_function, unicode_literals
+from tensorflow import keras
 import tensorflow as tf
 import numpy as np
 import os, time, sys
@@ -48,7 +49,7 @@ def generate_text(model, start_string):
   num_generate = 1000
 
   # Converting our start string to numbers (vectorizing)
-  input_eval = [char2idx[s] for s in start_string]
+  input_eval = [char2idx[s] for s in start_string.lower()]
   input_eval = tf.expand_dims(input_eval, 0)
 
   # Empty string to store our results
@@ -135,12 +136,14 @@ embedding_dim = 256
 # Number of RNN units
 rnn_units = 1024
 
+#model = tf.keras.models.load_model('\\training_checkpoints\\ckpt_40.data-00000-of-00001')
+
 model = build_model(
   vocab_size = len(chars),
   embedding_dim=embedding_dim,
   rnn_units=rnn_units,
   batch_size=BATCH_SIZE)
-
+'''
 for input_example_batch, target_example_batch in dataset.take(1):
     example_batch_predictions = model(input_example_batch)
     print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
@@ -152,7 +155,7 @@ print("Prediction shape: ", example_batch_predictions.shape, " # (batch_size, se
 print("scalar_loss:      ", example_batch_loss.numpy().mean())
 
 model.compile(optimizer='adam', loss=loss)
-
+'''
 checkpoint_dir = './training_checkpoints/{}'.format(philosopher)  #Directory where the checkpoints will be saved
 checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_{epoch}")  #Name of the checkpoint files
 
@@ -162,19 +165,19 @@ checkpoint_callback=tf.keras.callbacks.ModelCheckpoint(
 
 EPOCHS = 40
 
-history = model.fit(dataset, epochs=EPOCHS, callbacks=[checkpoint_callback])
+#history = model.fit(dataset, epochs=EPOCHS, callbacks=[checkpoint_callback])
 
-tf.train.latest_checkpoint(checkpoint_dir) #Train the RNN
+#tf.train.latest_checkpoint(checkpoint_dir) #Train the RNN
 
 model = build_model(vocab_size, embedding_dim, rnn_units, batch_size=1)
+
 model.load_weights(tf.train.latest_checkpoint(checkpoint_dir))
 model.build(tf.TensorShape([1, None]))
 model.summary()
 
 #Save the entire model
-model.save("Nietzsche.h5")
+model.save("\\training_checkpoints\\Nietzsche\\Nietzsche.h5")
 
-print(generate_text(model, start_string=u"Life,  "))
+print(generate_text(model, start_string=u"life,  "))
 
-#train_on("Nietzsche")
 #generate_text("training_checkpoints\ckpt_10.data-00000-of-00001","Life is ")
